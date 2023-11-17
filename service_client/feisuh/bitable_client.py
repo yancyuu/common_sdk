@@ -109,7 +109,7 @@ if __name__ == "__main__":
     # 使用你的APP_ID和APP_SECRET初始化客户端
     app_id = "cli_a5c23e508a7b500e"
     app_secret = "AsQRru43gx9x6qtPpTInihERAfvqeQZG"
-    lark_client = LarkBitableClient(app_id, app_secret, enable_token=True)
+    lark_client = BitableClient(app_id, app_secret, enable_token=True)
 
     # 调用 list_app_table_view
     app_token = "CQJTb7GtiapxgpspLGpchQmPnyf"
