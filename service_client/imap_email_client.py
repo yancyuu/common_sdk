@@ -1,7 +1,8 @@
 import imaplib
 import smtplib
-from email.mime.text import MIMEText
 import email
+from email.mime.text import MIMEText
+from email.header import decode_header
 from html.parser import HTMLParser
 import re
 
@@ -39,6 +40,7 @@ class IMAPEmailClient:
         self.smtp_port = smtp_port
         self.username = account_name
         self.password = account_password
+        self.connect_imap()
 
     def connect_imap(self):
         self.imap = imaplib.IMAP4(self.imap_host, self.imap_port)
@@ -69,45 +71,44 @@ class IMAPEmailClient:
             @param: encoding None 参数指定搜索条件的字符集。在这里，None 表示不使用任何特定的字符集。这是一个常见的做法，因为很多IMAP服务器默认使用UTF-8或相应的字符集。
             @param：key 'ALL' 参数是一个搜索关键字，它告诉服务器返回所有邮件的列表。IMAP搜索关键字可以很灵活，比如 'UNSEEN' 用于搜索所有未读邮件，'FROM "example@example.com"' 用于搜索来自特定地址的邮件等。
         """
-        status, messages = self.imap.search(encoding, key)
-        # 处理邮件的代码可以放在这里
-        return messages[0].split()  # 将字符串分割成列表
+        # 根据给定的关键字搜索邮件，返回邮件 ID 列表
+        typ, data = self.imap.search(None, key)
+        if typ != 'OK':
+            return []
+        return data[0].split()
 
 
-    def fetch_emails(self, encoding=None, key="UNSEEN"):
+    def fetch_emails(self, encoding='utf-8', key="UNSEEN"):
         """
-            @param: encoding None 参数指定搜索条件的字符集。在这里，None 表示不使用任何特定的字符集。这是一个常见的做法，因为很多IMAP服务器默认使用UTF-8或相应的字符集。
-            @param：key 'ALL' 参数是一个搜索关键字，它告诉服务器返回所有邮件的列表。IMAP搜索关键字可以很灵活，比如 'UNSEEN' 用于搜索所有未读邮件，'FROM "example@example.com"' 用于搜索来自特定地址的邮件等。
+        @param encoding: 参数指定搜索条件的字符集。默认为 UTF-8。
+        @param key: 搜索关键字，如 'UNSEEN' 表示所有未读邮件。
         """
         stripper = MLStripper()
         email_boxs = []
+        self.imap.encoding = encoding
+
+        # 搜索邮件
+        if not all(ord(c) < 128 for c in key):
+            key = key.encode(encoding)
         mail_ids = self.fetch_email_ids(encoding, key)
+        
         for mail_id in mail_ids:
-            # data 是一个包含邮件数据的复杂结构
-            status, data = self.imap.fetch(mail_id, '(RFC822)')
-            # 通常，邮件内容包含在 data 列表的第一部分
+            typ, data = self.imap.fetch(mail_id, '(RFC822)')
+            if typ != 'OK':
+                continue
             for response_part in data:
                 if isinstance(response_part, tuple):
-                    # 将邮件内容解析为邮件对象
                     msg = email.message_from_bytes(response_part[1])
-                    # 从邮件对象中提取所需信息，例如主题、发件人、邮件正文等
-                    email_subject = msg['subject']
-                    if email_subject is None:
-                        email_subject = "无主题"
+                    email_subject = "无主题"
+                    if msg['subject']:
+                        email_subject = decode_header(msg['subject'])
+                        email_subject = ''.join([text.decode(charset or 'utf-8') if charset else text for text, charset in email_subject])
                     email_from = msg['from']
-                    print('From : ' + email_from + '\n')
-                    print('Subject : ' + email_subject + '\n')
-                    # 使用 get_body 函数提取邮件正文
                     email_body = self.get_body(msg)
-                    if 'html' in msg.get_content_type():
-                        email_text = stripper.get_text_from_html(email_body)
-                    else:
-                        email_text = email_body
-                    if not email_text:
-                        continue
-                    print('Email_text : ' + email_text + '\n')
-                    email_boxs.append({"subject": email_subject, "from": email_from, "text": email_text})
-        # 处理邮件的代码可以放在这里
+                    email_text = stripper.get_text_from_html(email_body) if 'html' in msg.get_content_type() else email_body
+                    if email_text:
+                        email_boxs.append({"subject": email_subject, "from": email_from, "text": email_text})
+
         return email_boxs
 
     def close_imap(self):
