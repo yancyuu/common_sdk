@@ -44,8 +44,10 @@ class LinkAIClient(metaclass=SingletonMetaclass):
             # exit from retry 2 times
             logger.warning("[LINKAI] failed after maximum number of retry times")
             text = "提问频繁，请稍后再试" 
-            text_bytes = b'data: {"choices": [{"index": 0, "delta": {"content": "'+ text.encode('utf-8') +b'"}, "finish_reason": null}]}\r\n\r\n'
-            return MyBytes(text_bytes)
+            if stream:
+                text_bytes = b'data: {"choices": [{"index": 0, "delta": {"content": "'+ text.encode('utf-8') +b'"}, "finish_reason": null}]}\r\n\r\n'
+                return MyBytes(text_bytes)
+            return
         try:
             body.update({"messages": session.messages})
             service_url = sys_env.get_env("LINK_AI_BASE_URL")
@@ -63,9 +65,10 @@ class LinkAIClient(metaclass=SingletonMetaclass):
                     logger.info(f"[LINKAI] do retry, times={retry_count}")
                     return self.application_completions(query, session, app_code, retry_count=retry_count + 1, stream=stream)
                 text = "请求频繁请稍后再试"
-                text_bytes = b'data: {"choices": [{"index": 0, "delta": {"content": "'+ text.encode('utf-8') +b'"}, "finish_reason": null}]}\r\n\r\n'
-                return MyBytes(text_bytes)
-
+                if stream:
+                    text_bytes = b'data: {"choices": [{"index": 0, "delta": {"content": "'+ text.encode('utf-8') +b'"}, "finish_reason": null}]}\r\n\r\n'
+                    return MyBytes(text_bytes)
+                return
         except Exception as e:
             logger.exception(e)
             # retry
