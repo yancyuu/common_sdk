@@ -54,6 +54,34 @@ class BitableClient:
         response: ListAppTableRecordResponse = self.client.bitable.v1.app_table_record.list(request)
         return self._process_response(response)
 
+    def list_all_records(self, app_token, table_id, view_id=None, filter=None):
+        all_records = []
+        page_token = None
+
+        while True:
+            # 构造请求对象
+            request = ListAppTableRecordRequest.builder() \
+                .app_token(app_token) \
+                .table_id(table_id) \
+                .view_id(view_id) \
+                .page_size(500)
+            if page_token:
+                request = request.page_token(page_token)
+            if filter:
+                request = request.filter(page_token)
+            # 发起请求
+            response: ListAppTableRecordResponse = self.client.bitable.v1.app_table_record.list(request.build())
+            records = self._process_response(response)
+            if records.items:
+                all_records.extend(records.items)
+            # 检查是否还有更多的记录
+            has_more = records.has_more
+            page_token = records.page_token if has_more else None
+
+            if not has_more:
+                break
+        return all_records
+
     def update_view_record(self, app_token, table_id, record_id :str, fields :dict):
         # 构造请求对象
         request = BatchUpdateAppTableRecordRequest.builder() \
