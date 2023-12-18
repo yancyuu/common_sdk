@@ -68,7 +68,7 @@ class BitableClient:
             if page_token:
                 request = request.page_token(page_token)
             if filter:
-                request = request.filter(page_token)
+                request = request.filter(filter)
             # 发起请求
             response: ListAppTableRecordResponse = self.client.bitable.v1.app_table_record.list(request.build())
             records = self._process_response(response)
