@@ -57,7 +57,7 @@ class TianrunClient:
         method = 'POST'
         base_url = '/kb/create_article'
         params = {}
-        signature = self.generate_signature(method, base_url, article_data)
+        signature = self.generate_signature(method, self.host + base_url, params)
         params['Signature'] = signature
         response = requests.post(f'https://{self.host}{base_url}?{urlencode(params)}', json=article_data)
         return response.json()
@@ -66,7 +66,7 @@ class TianrunClient:
         method = 'POST'
         base_url = '/kb/update_article'
         params = {}
-        signature = self.generate_signature(method, self.host + base_url, article_data)
+        signature = self.generate_signature(method, self.host + base_url, params)
         params['Signature'] = signature
         response = requests.post(f'https://{self.host}{base_url}?{urlencode(params)}', json=article_data)
         return response.json()

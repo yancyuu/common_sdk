@@ -47,7 +47,7 @@ class LinkAIClient(metaclass=SingletonMetaclass):
             if stream:
                 text_bytes = b'data: {"choices": [{"index": 0, "delta": {"content": "'+ text.encode('utf-8') +b'"}, "finish_reason": null}]}\r\n\r\n'
                 return MyBytes(text_bytes)
-            return
+            return text
         try:
             body.update({"messages": session.messages})
             service_url = sys_env.get_env("LINK_AI_BASE_URL")
@@ -68,7 +68,8 @@ class LinkAIClient(metaclass=SingletonMetaclass):
                 if stream:
                     text_bytes = b'data: {"choices": [{"index": 0, "delta": {"content": "'+ text.encode('utf-8') +b'"}, "finish_reason": null}]}\r\n\r\n'
                     return MyBytes(text_bytes)
-                return
+                return text
+
         except Exception as e:
             logger.exception(e)
             # retry
