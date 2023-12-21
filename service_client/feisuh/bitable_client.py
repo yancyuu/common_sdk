@@ -122,7 +122,17 @@ class BitableClient:
         # 发起请求
         response: CreateAppTableRecordResponse = self.client.bitable.v1.app_table_record.create(request)
         return self._process_response(response)
+    
+    def list_fields(self, app_token, table_id):
+        # 构造请求对象
+        request: ListAppTableFieldRequest = ListAppTableFieldRequest.builder() \
+            .app_token(app_token)\
+            .table_id(table_id) \
+            .build()
 
+        # 发起请求
+        response: ListAppTableFieldResponse = self.client.bitable.v1.app_table_field.list(request)
+        return self._process_response(response)
 
     def _process_response(self, response):
         if not response.success():
