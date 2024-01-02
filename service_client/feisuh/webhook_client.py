@@ -46,7 +46,7 @@ class WebhookClient:
 if __name__ == '__main__':
 
     webhook_url = 'https://open.feishu.cn/open-apis/bot/v2/hook/3e0d440f-265f-4deb-96b0-513c4c6ea8d0' # 你的 Webhook URL
-    bot = FeishuBot(webhook_url)
+    bot = WebhookClient(webhook_url)
     content= {
                 "post": {
                     "zh_cn": {
