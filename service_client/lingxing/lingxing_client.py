@@ -1,7 +1,6 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
 """封装Openapi基础操作"""
-import asyncio
 import time
 import httpx
 import orjson
@@ -47,16 +46,17 @@ class LingxingClient(object):
         self.app_id = app_id
         self.app_secret = app_secret
         self.default_timeout = default_timeout
+        self.client = httpx.Client()
 
-    async def request(self, route_name: str, method: str,
-                      req_params: Optional[dict] = None,
-                      req_body: Optional[dict] = None,
-                      **kwargs) -> ResponseResult:
+    def request(self, route_name: str, method: str,
+                req_params: Optional[dict] = None,
+                req_body: Optional[dict] = None,
+                **kwargs) -> ResponseResult:
         req_url = self.host + route_name
         headers = kwargs.pop('headers', {})
         # 获取 access_token
         try:
-            access_token = await self.generate_access_token()
+            access_token = self.generate_access_token()
         except Exception as e:
             raise ValueError(f"Error getting access token: {e}")
         # 准备签名参数
@@ -81,50 +81,40 @@ class LingxingClient(object):
             headers['Content-Type'] = 'application/json'
 
         # 发送请求
-        return await self.make_request(method, req_url, params=req_params,
-                                        headers=headers, json=req_body, **kwargs)
+        return self.make_request(method, req_url, params=req_params,
+                                 headers=headers, json=req_body, **kwargs)
 
             
-    async def make_request(self, method: str, req_url: str,
-                           params: Optional[dict] = None,
-                           json: Optional[dict] = None,
-                           headers: Optional[dict] = None,
-                           **kwargs) -> ResponseResult:
+    def make_request(self, method: str, req_url: str,
+                     params: Optional[dict] = None,
+                     json: Optional[dict] = None,
+                     headers: Optional[dict] = None,
+                     **kwargs) -> ResponseResult:
         timeout = kwargs.pop('timeout', self.default_timeout)
         data = orjson.dumps(json, option=orjson.OPT_SORT_KEYS).decode() if json else None
-        async with httpx.AsyncClient() as client:
-            print(f"request---------------------->{req_url} {params} {data} {headers}")
-
-            resp = await client.request(method=method, url=req_url, params=params, 
-                                        content=data, timeout=timeout, headers=headers)
-            print(f"resp---------------------->{resp.json()}")
-            if resp.status_code != 200:
-                raise ValueError(f"Response error, status code: {resp.status_code}, body: {resp.text}")
-            return ResponseResult(**resp.json())
+        print(f"[lingxing] request {req_url} params {params} data {data} headers {headers}")
+        resp = self.client.request(method=method, url=req_url, params=params, 
+                                  content=data, timeout=timeout, headers=headers)
+        print(f"[lingxing] response {resp.json()}")
+        if resp.status_code != 200:
+            raise ValueError(f"Response error, status code: {resp.status_code}, body: {resp.text}")
+        return ResponseResult(**resp.json())
     
-    async def _make_token_request(self, path: str, additional_params: dict) -> AccessTokenDto:
+    def _make_token_request(self, path: str, additional_params: dict) -> AccessTokenDto:
         """构造和发送获取/刷新token的请求"""
         req_url = self.host + path
         req_params = {"appId": self.app_id, "appSecret": self.app_secret, **additional_params}
-        resp_result = await self.make_request("POST", req_url, params=req_params)
+        resp_result = self.make_request("POST", req_url, params=req_params)
         if resp_result.code != 200:
             error_msg = f"generate_access_token failed, reason: {resp_result.message}"
             raise ValueError(error_msg)
         assert isinstance(resp_result.data, dict)
         return AccessTokenDto(**resp_result.data)
 
-    async def generate_access_token(self) -> AccessTokenDto:
-        return await self._make_token_request('/api/auth-server/oauth/access-token', {})
+    def generate_access_token(self) -> AccessTokenDto:
+        return self._make_token_request('/api/auth-server/oauth/access-token', {})
 
-    async def refresh_token(self, refresh_token: str) -> AccessTokenDto:
-        return await self._make_token_request('/api/auth-server/oauth/refresh', {"refreshToken": refresh_token})
+    def refresh_token(self, refresh_token: str) -> AccessTokenDto:
+        return self._make_token_request('/api/auth-server/oauth/refresh', {"refreshToken": refresh_token})
 
 
-
-if __name__ == "__main__":    
-    async def main():
-        api_client = LingxingClient(app_id="ak_oZqggBoEB3k7q", app_secret="HpzInsnyQr6vDJOeuIBb7w==")
-        result = await api_client.request("/erp/sc/data/seller/lists", "GET")
-        print(result)
-    # 运行异步主函数
-    asyncio.run(main())
