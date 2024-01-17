@@ -51,7 +51,7 @@ class LinkAIClient(metaclass=SingletonMetaclass):
         try:
             body.update({"messages": session.messages})
             service_url = sys_env.get_env("LINK_AI_BASE_URL")
-            res = requests.post('{}/v1/chat/completions'.format(service_url), json=body, headers=headers, timeout=180)
+            res = requests.post('{}/v1/chat/completions'.format(service_url), json=body, headers=headers, timeout=20)
             logger.info(f"[LINKAI] res={res.status_code}")
             if res.status_code == 200:
                 logger.info(f"[LINKAI] reply={res.content}")
