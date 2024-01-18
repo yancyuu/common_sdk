@@ -14,7 +14,7 @@ import random
 """linkAI的client类"""
 class LinkAIClient(metaclass=SingletonMetaclass):
 
-    def application_completions(self, query, session, app_code, retry_count=0, stream=False):
+    def application_completions(self, query, session, app_code, retry_count=0, stream=False, model="gpt-3.5-turbo-16k"):
         """
         调用linkai的应用聊天
         
@@ -33,7 +33,7 @@ class LinkAIClient(metaclass=SingletonMetaclass):
         }
         body = {
             "app_code": app_code,
-            "model": get_env("BOT_MODEL"),     # 对话模型的名称, 支持 gpt-3.5-turbo, gpt-3.5-turbo-16k, gpt-4, wenxin, xunfei
+            "model": model,     # 对话模型的名称, 支持 gpt-3.5-turbo, gpt-3.5-turbo-16k, gpt-4, wenxin, xunfei
             "temperature": get_env("BOT_TEMPERATURE"),
             "top_p": get_env("BOT_TOP_P"),
             "frequency_penalty": get_env("BOT_FREQUENCY_PENALTY", 0.0),  # [-2,2]之间，该值越大则更倾向于产生不同的内容
@@ -63,7 +63,7 @@ class LinkAIClient(metaclass=SingletonMetaclass):
                     # server error, need retry
                     time.sleep(2)
                     logger.info(f"[LINKAI] do retry, times={retry_count}")
-                    return self.application_completions(query, session, app_code, retry_count=retry_count + 1, stream=stream)
+                    return self.application_completions(query, session, app_code, retry_count=retry_count + 1, stream=stream, model=model)
                 text = "请求频繁请稍后再试"
                 if stream:
                     text_bytes = b'data: {"choices": [{"index": 0, "delta": {"content": "'+ text.encode('utf-8') +b'"}, "finish_reason": null}]}\r\n\r\n'
@@ -75,7 +75,7 @@ class LinkAIClient(metaclass=SingletonMetaclass):
             # retry
             time.sleep(2)
             logger.info(f"[LINKAI] do retry, times={retry_count}")
-            return self.application_completions(query, session, app_code, retry_count + 1, stream=stream)
+            return self.application_completions(query, session, app_code, retry_count + 1, stream=stream, model=model)
 
 
     def _fecth_knowledge_search_suffix(self, response) -> str:
