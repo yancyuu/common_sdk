@@ -11,7 +11,7 @@ class RetryException(Exception):
 
 class BitableClient:
     
-    def __init__(self, enable_token: bool = False, log_level: lark.LogLevel = lark.LogLevel.ERROR):
+    def __init__(self, enable_token: bool = False, log_level: lark.LogLevel = lark.LogLevel.INFO):
         self.app_id = get_env("BITTABLE_APP_ID")
         self.app_secret = get_env("BITTABLE_APP_SECRET")
         self.enable_token = enable_token
@@ -26,14 +26,37 @@ class BitableClient:
         return builder.build()
     
     @backoff.on_exception(backoff.expo, RetryException, max_tries=3)
-    async def create_app_table(self, name, folder_token):
-        request = CreateAppRequest.builder()\
-            .request_body(ReqApp.builder()
-            .name(name)
-            .folder_token(folder_token)
-            .build()) \
-        .build()
-        response: CreateAppResponse = self.client.bitable.v1.app.acreate(request)
+    async def acreate_app_table(self, app_token, name, view_name, fields_info):
+        """
+        创建应用表
+        :param app_token: 应用令牌
+        :param name: 表格名称
+        :param folder_token: 文件夹令牌
+        :param fields_info: 字段信息列表，每个元素是一个字典，包含 'field_name' 和 'type'
+        :return: 创建结果
+        """
+        # 动态生成字段
+        fields = []
+        for field_info in fields_info:
+            builder = AppTableCreateHeader.builder().field_name(field_info['field_name']).type(field_info['type'])
+            if 'property' in field_info:
+                builder.property(field_info['property'])
+            if "ui_type" in field_info:
+                builder.ui_type(field_info['ui_type'])
+            fields.append(builder.build())
+
+        request = CreateAppTableRequest.builder() \
+            .app_token(app_token) \
+            .request_body(CreateAppTableRequestBody.builder()
+                .table(ReqTable.builder()
+                    .name(name)
+                    .default_view_name(view_name)
+                    .fields(fields)
+                    .build())
+                .build()) \
+            .build()
+
+        response: CreateAppResponse = await self.client.bitable.v1.app_table.acreate(request)
         return self._process_response(response)
 
     @backoff.on_exception(backoff.expo, RetryException, max_tries=3)
@@ -176,8 +199,9 @@ class BitableClient:
             request = ListAppTableRecordRequest.builder() \
                 .app_token(app_token) \
                 .table_id(table_id) \
-                .view_id(view_id) \
                 .page_size(500)
+            if view_id:
+                request = request.view_id(view_id)
             if page_token:
                 request = request.page_token(page_token)
             if filter:

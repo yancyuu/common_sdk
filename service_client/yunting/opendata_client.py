@@ -19,9 +19,9 @@ class OpendataClient:
         self.base_url = get_env("YUNTING_OPEANDATA_BASE_URL")
         self.source = source
         self.third_party_id = third_party_id
-        self.resource_token = '0fa0210a53f24afeb9f7891ef4a200a7'
+        self.resource_token = get_env("YUNTING_OPEANDATA_RESOURCE_TOKEN")
 
-    @backoff.on_exception(backoff.expo, (httpx.HTTPStatusError, YuntingAPIException), max_tries=3)
+    @backoff.on_exception(backoff.expo, (httpx.HTTPStatusError, YuntingAPIException), base=2, factor=2, max_time=60, jitter=backoff.full_jitter, max_tries=5)
     async def fetch_yunting_data(self):
         await self.get_access_token()
         # 查询数据开始时间，精确到毫秒 历史模式：从0开始赋值开始拉 正常模式：从昨天凌晨0点赋值开始拉
@@ -50,6 +50,8 @@ class OpendataClient:
                 logger.info(f"[YUNTING] request {curl_command}")
 
                 response = await client.post(self.base_url + "/v2/third/pull", json=payload, headers=headers)
+                logger.info(f"[YUNTING] response {response.__dict__}")
+
                 response.raise_for_status()
                 response = response.json()
                 if response.get("code") != 20000:
