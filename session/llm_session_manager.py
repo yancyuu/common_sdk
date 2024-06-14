@@ -1,5 +1,5 @@
 # chatGPT的session管理器,用来存放进程中的一些全局变量，比如上下文回话
-from common_sdk.auth.redis_storage import redis_storage
+from common_sdk.util.redis_utils import redis_storage
 from common_sdk.logging.logger import logger
 from common_sdk.system.sys_env import get_env
 import json

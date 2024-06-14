@@ -11,9 +11,7 @@ class RedisStorage(metaclass=SingletonMetaThreadSafe):
 
 
     def __init__(self) -> None:
-        self._redis = redis.Redis(host=sys_env.get_env('REDIS_ADDRESS'),
-                                  port=sys_env.get_env('REDIS_PORT'),
-                                  password=sys_env.get_env('REDIS_PASSWORD'))
+        self._redis = redis.Redis.from_url(url=sys_env.get_env('REDIS_ADDRESS'))
         self._redis_async = None
 
     def set(self, key, data, expired=7200) -> bool:
@@ -78,8 +76,7 @@ class RedisStorage(metaclass=SingletonMetaThreadSafe):
     async def _ensure_async_client(self):
         if not self._redis_async:
             self._redis_async = aioredis.from_url(
-                f"redis://{sys_env.get_env('REDIS_ADDRESS')}:{sys_env.get_env('REDIS_PORT')}",
-                password=sys_env.get_env('REDIS_PASSWORD'),
+                url=sys_env.get_env('REDIS_ADDRESS'),
                 encoding="utf-8",
                 decode_responses=True
             )

@@ -21,7 +21,7 @@ class FastGPTClient:
         }
     
     @backoff.on_exception(backoff.expo,
-                      httpx.HTTPStatusError,
+                      (httpx.HTTPStatusError, httpx.TimeoutException),
                       base=3,
                       factor=2,
                       max_tries=5,
@@ -38,7 +38,7 @@ class FastGPTClient:
                         yield chunk
             except httpx.TimeoutException as e:
                 logger.error(f'请求超时，错误信息：{e}')
-                yield None
+                raise
             except httpx.HTTPStatusError as e:
                 logger.error(f'请求失败，状态码：{e.response.status_code}, 错误信息：{e.response.text}')
                 # if e.response.status_code == 500:
@@ -51,7 +51,7 @@ class FastGPTClient:
                 raise
 
     @backoff.on_exception(backoff.expo,
-                          httpx.HTTPStatusError,
+                          (httpx.HTTPStatusError, httpx.TimeoutException),
                           base=3,
                           factor=2,
                           max_tries=3,
@@ -67,7 +67,7 @@ class FastGPTClient:
                 return self.process_response(response)
             except httpx.TimeoutException as e:  # 捕获超时异常
                 logger.error(f'请求超时，错误信息：{e}')
-                return None
+                raise
             except httpx.HTTPStatusError as e:  # 捕获异常
                 logger.error(f'请求失败，状态码：{e.response.status_code}, 错误信息：{e.response.text}') 
                 # if e.response.status_code == 500:
@@ -81,7 +81,7 @@ class FastGPTClient:
                 raise 
         
     @backoff.on_exception(backoff.expo,
-                          httpx.HTTPStatusError,
+                          (httpx.HTTPStatusError, httpx.TimeoutException),
                           base=3,
                           factor=2,
                           max_tries=5,
@@ -96,7 +96,7 @@ class FastGPTClient:
                 return self.process_response(response)
             except httpx.TimeoutException as e:  # 捕获超时异常
                 logger.error(f'请求超时，错误信息：{e}')
-                return None
+                raise
             except httpx.HTTPStatusError as e:  # 捕获异常
                 # 在这里，你可以获取到异常的详细信息 
                 logger.error(f'请求失败，状态码：{e.response.status_code}, 错误信息：{e.response.text}') 
