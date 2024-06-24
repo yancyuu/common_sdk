@@ -32,7 +32,7 @@ class BaseAPI:
         max_tries=5,
         giveup=lambda e: e.response is not None and e.response.status_code < 500
     )
-    async def make_request_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None, files: Any = None) -> Dict[str, Any]:
+    async def make_request_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None, files: Any = None, timeout=60) -> Dict[str, Any]:
         async with httpx.AsyncClient() as client:
             response = await client.request(
                 method=method,
@@ -40,7 +40,8 @@ class BaseAPI:
                 headers=self.get_headers(),
                 json=body,
                 files=files,
-                params=params
+                params=params,
+                timeout = timeout
             )
             return await self.process_response(response)
         

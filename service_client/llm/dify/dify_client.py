@@ -35,7 +35,7 @@ class DifyClient(BaseAPI, APIClientProtocol):
         payload = {
             "query": query,
             "user": user,
-            "response_mode": 'streaming',
+            "response_mode": 'blocking',
             "auto_generate_name": auto_generate_name,
             "files": files,
             "inputs": inputs
