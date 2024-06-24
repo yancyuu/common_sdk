@@ -85,6 +85,9 @@ class DifyClient(BaseAPI, APIClientProtocol):
         async for chunk in self.make_request_stream_async('POST', url, body=payload):
             yield chunk
     
+    async def chat_completions_stop(self, user, task_id):
+        return await self.make_request_async('POST', f'{self.base_url}/chat-messages/{task_id}/stop', body={"user": user})
+    
     async def completion_messages(self, user: str, conversation_id: str = None, inputs: Dict[str, Any] = None, files: List[Dict[str, Any]] = None) -> Any:
         """
         completion_messages 文本生成型应用的消息发送接口
@@ -146,6 +149,10 @@ class DifyClient(BaseAPI, APIClientProtocol):
         logger.info(f"[Dify] post url {url} completion_messages_with_streaming payload: {payload}")
         async for chunk in self.make_request_stream_async('POST', url, body=payload):
             yield chunk
+
+    async def completion_messages_stop(self, user, task_id):
+        url = f'{self.base_url}/completion-messages/{task_id}/stop'
+        return await self.make_request_async('POST', {url}, body={"user": user})
 
     async def feedback_message(self, message_id, rating, user):
         url = f'/messages/{message_id}/feedbacks'

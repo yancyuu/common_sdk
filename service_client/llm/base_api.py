@@ -20,8 +20,8 @@ class BaseAPI:
         }
     
     async def process_response(self, response: httpx.Response) -> Dict[str, Any]:
-        data = response.json()
         if response.status_code == 200:
+            data = response.json()
             return data
         else:
             raise httpx.HTTPStatusError(f"Error response {response.status_code}", request=response.request, response=response)
