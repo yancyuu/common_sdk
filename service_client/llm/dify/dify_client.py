@@ -3,12 +3,13 @@ from common_sdk.system.sys_env import get_env
 from common_sdk.logging.logger import logger
 from common_sdk.util.id_generator import generate_common_id
 from common_sdk.service_client.llm.base_api import BaseAPI
-from typing import Any, Dict, List, TypeVar, Protocol, runtime_checkable
+from typing import Any, Dict, List, Protocol, runtime_checkable
+from ._types import WorkflowApiResponse, ChatMessageResponse
 
 # 定义协议类，用于类型检查
 @runtime_checkable
 class APIClientProtocol(Protocol):
-    async def chat_completions(self, query: str, user: str, response_mode: str = "blocking", conversation_id: str = None, inputs: Dict[str, Any] = None, files: List[Dict[str, Any]] = None, auto_generate_name: bool = True) -> Any:
+    async def chat_completions(self, query: str, user: str, conversation_id: str = None, inputs: Dict[str, Any] = None, files: List[Dict[str, Any]] = None, auto_generate_name: bool = True) -> Any:
         ...
 
 class DifyClient(BaseAPI, APIClientProtocol):
@@ -44,11 +45,10 @@ class DifyClient(BaseAPI, APIClientProtocol):
             payload.update({
                 "conversation_id": conversation_id,
             })
-
         
-        logger.info(f"[Dify] post url {url} completion_messages_with_streaming payload: {payload} header {self.get_headers()}")
 
-        return await self.make_request_async('POST', url, body=payload)
+        response_data = await self.make_request_async('POST', url, body=payload)
+        return ChatMessageResponse(** response_data)
     
         
     async def chat_completions_with_streaming(self, query, user, conversation_id=None, inputs={}, files=[], auto_generate_name=True) -> Any:
@@ -79,8 +79,6 @@ class DifyClient(BaseAPI, APIClientProtocol):
             payload.update({
                 "conversation_id": conversation_id,
             })
-
-        logger.info(f"[Dify] post url {url} completion_messages_with_streaming payload: {payload} header {self.get_headers()}")
 
         async for chunk in self.make_request_stream_async('POST', url, body=payload):
             yield chunk
@@ -115,7 +113,6 @@ class DifyClient(BaseAPI, APIClientProtocol):
         if files:
             payload["files"] = files
 
-        logger.info(f"[Dify] post url {url} completion_messages_with_streaming payload: {payload}")
 
         return await self.make_request_async('POST', url, body=payload)
 
@@ -146,13 +143,77 @@ class DifyClient(BaseAPI, APIClientProtocol):
         if files:
             payload["files"] = files
 
-        logger.info(f"[Dify] post url {url} completion_messages_with_streaming payload: {payload}")
         async for chunk in self.make_request_stream_async('POST', url, body=payload):
             yield chunk
 
     async def completion_messages_stop(self, user, task_id):
         url = f'{self.base_url}/completion-messages/{task_id}/stop'
         return await self.make_request_async('POST', {url}, body={"user": user})
+
+    async def run_workflow(self, inputs: dict, user: str, files: List[Dict] = []) -> WorkflowApiResponse:
+        """
+        run_workflow 执行 workflow 的接口
+
+        Args:
+            inputs: 传入的各变量值
+            user: 用户标识
+            response_mode: 返回响应模式，支持 'streaming' 和 'blocking'
+            files: 文件列表，适用于传入文件（图片）
+
+        Returns:
+            返回执行结果或流式响应
+        """
+        url = '/workflows/run'
+        payload = {
+            "inputs": inputs,
+            "response_mode": 'blocking',
+            "user": user,
+            "files": files
+        }
+
+        response_data = await self.make_request_async('POST', url, body=payload)
+
+        return WorkflowApiResponse(** response_data)
+    
+    async def run_workflow_with_streaming(self, inputs: dict, user: str, files: List[Dict] = []) -> Any:
+        """
+        run_workflow 执行 workflow 的接口
+
+        Args:
+            inputs: 传入的各变量值
+            user: 用户标识
+            response_mode: 返回响应模式，支持 'streaming' 和 'blocking'
+            files: 文件列表，适用于传入文件（图片）
+
+        Returns:
+            返回执行结果或流式响应
+        """
+        url = '/workflows/run'
+        payload = {
+            "inputs": inputs,
+            "response_mode": 'streaming',
+            "user": user,
+            "files": files
+        }
+        
+        async for chunk in self.make_request_stream_async('POST', url, body=payload):
+                yield chunk
+
+    async def stop_workflow(self, user: str, task_id: str) -> Any:
+        """
+        stop_workflow 停止 workflow 的接口，仅支持流式模式
+
+        Args:
+            user: 用户标识
+            task_id: 任务 ID
+
+        Returns:
+            返回停止结果
+        """
+        url = f'/workflows/{task_id}/stop'
+        payload = {"user": user}
+
+        return await self.make_request_async('POST', url, body=payload)
 
     async def feedback_message(self, message_id, rating, user):
         url = f'/messages/{message_id}/feedbacks'
