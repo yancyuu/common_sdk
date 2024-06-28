@@ -14,7 +14,7 @@ T = TypeVar('T')
 class BaseRedisStorage(Generic[T], metaclass=SingletonMetaThreadSafe):
     
     def __init__(self) -> None:
-        self.redis_addresses = sys_env.get_env('REDIS_ADDRESSES').split(',')
+        self.redis_addresses = sys_env.get_env('REDIS_ADDRESS').split(',')
         self.master_address = self.redis_addresses[0]
         self._redis = redis.Redis.from_url(self.master_address)
 
