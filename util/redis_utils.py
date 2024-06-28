@@ -79,7 +79,6 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
             self._redis_async_client = await aioredis.create_redis_pool(
                 self.master_address,
                 encoding="utf-8",
-                decode_responses=True
             )
         return self._redis_async_client
     
