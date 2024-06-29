@@ -1,11 +1,13 @@
 # -*- coding: utf-8 -*-
 
 import json
-import time
-from common_sdk.base_class.singleton import SingletonMetaThreadSafe
-import redis
-import aioredis
+import time, traceback
 import aioredlock
+import aioredis
+from common_sdk.base_class.singleton import SingletonMetaThreadSafe
+from common_sdk.logging.logger import logger
+from redlock import Redlock
+import redis 
 from typing import TypeVar, Generic, Union
 from ..system import sys_env
 
@@ -16,10 +18,8 @@ class BaseRedisStorage(Generic[T], metaclass=SingletonMetaThreadSafe):
     def __init__(self) -> None:
         self.redis_addresses = sys_env.get_env('REDIS_ADDRESS').split(',')
         self.master_address = self.redis_addresses[0]
-        self._redis = redis.Redis.from_url(self.master_address)
-
-        self._redlock = aioredlock.Aioredlock([{"address": url} for url in self.redis_addresses])
-        self._redis_async_client = None
+        self._redlock = Redlock([url for url in self.redis_addresses])
+        self._redis = redis.from_url(self.master_address)
 
     def set(self, key: str, data: T, expired: int = 7200) -> bool:
         if not key:
@@ -73,15 +73,17 @@ class BaseRedisStorage(Generic[T], metaclass=SingletonMetaThreadSafe):
 
 class AsyncRedisStorage(BaseRedisStorage[T]):
 
+    def __init__(self) -> None:
+        super().__init__()
+        self._redlock = aioredlock.Aioredlock([url for url in self.redis_addresses])
+        self._redis_async_client = None
+
     @property
     async def redis_async_client(self):
         if not self._redis_async_client:
-            self._redis_async_client = await aioredis.create_redis_pool(
-                self.master_address,
-                encoding="utf-8",
-            )
+            self._redis_async_client = await aioredis.create_redis_pool(self.master_address)
         return self._redis_async_client
-    
+        
     async def set(self, key: str, data: T, expired: int = None) -> bool:
         redis_async_client = await self.redis_async_client
         if not key:
@@ -120,10 +122,46 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
         await redis_async_client.lpush(queue_name, json.dumps(message))
 
     async def dequeue_message(self, queue_name: str, timeout: int = 0) -> Union[T, None]:
+        """
+        dequeue_message _summary_
+
+        Args:
+            queue_name: _description_
+            timeout: _description_. Defaults to 0.
+
+        Returns:
+            _description_
+        """
         redis_async_client = await self.redis_async_client
         message = await redis_async_client.brpop(queue_name, timeout=timeout)
         if message:
             return json.loads(message[1])
+        return None
+    
+    async def dequeue_message_atomic(self, queue_name: str) -> Union[T, None]:
+        """
+        dequeue_message_atomic 原子化弹出队列数据（避免多线程竞争）
+
+        Args:
+            queue_name: 队列名称
+
+        Returns:
+            _description_
+        """
+        
+        lua_script = """
+        if redis.call('LLEN', KEYS[1]) > 0 then
+            return redis.call('LPOP', KEYS[1])
+        else
+            return nil
+        end
+        """
+        redis_async_client = await self.redis_async_client
+        # 载入 Lua 脚本并执行
+        script = await redis_async_client.script_load(lua_script)
+        message = await redis_async_client.evalsha(script, keys=[queue_name])
+        if message:
+            return json.loads(message.decode('utf-8'))
         return None
 
     async def get_queue_length(self, queue_name: str) -> int:
@@ -131,22 +169,37 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
         return await redis_async_client.llen(queue_name)
 
     async def acquire_lock(self, lock_name: str, lock_timeout: int = 60):
+        if lock_timeout <= 0:
+            raise ValueError("Lock timeout must be greater than 0 seconds.")
+
         start_time = time.time() * 1000
-        lock = await self._redlock.lock(lock_name, lock_timeout)
-        elapsed_time = time.time() * 1000 - start_time
+        try:
+            lock = await self._redlock.lock(lock_name, lock_timeout)
+            elapsed_time = time.time() * 1000 - start_time
 
-        if not lock:
+            if not lock.valid:
+                return False
+
+            adjusted_lock_timeout = lock_timeout * 1000 - elapsed_time
+            if adjusted_lock_timeout <= 0:
+                await self._redlock.unlock(lock)
+                return False
+
+            return lock
+        except aioredlock.LockError as e:
+            err_info = traceback.format_exc()
+            logger.error(f"Failed to acquire lock due to error: {err_info}")
             return False
 
-        adjusted_lock_timeout = lock_timeout * 1000 - elapsed_time
-        if adjusted_lock_timeout <= 0:
+    async def release_lock(self, lock):
+        try:
             await self._redlock.unlock(lock)
-            return False
-
-        return lock
-
-    async def release_lock(self, lock) -> None:
-        await self._redlock.unlock(lock)
+        except aioredlock.LockError as e:
+            logger.error(f"Failed to release lock due to error: {e}")
+    
+    async def cleanup(self):
+        # 清理资源
+        await self._redlock.destroy()
 
 # 示例使用
 redis_storage = BaseRedisStorage[dict]()
