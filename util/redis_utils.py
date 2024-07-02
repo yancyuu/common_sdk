@@ -3,11 +3,11 @@
 import json
 import time, traceback
 import aioredlock
-import aioredis
 from common_sdk.base_class.singleton import SingletonMetaThreadSafe
 from common_sdk.logging.logger import logger
 from redlock import Redlock
 import redis 
+import redis.asyncio as aioredis
 from typing import TypeVar, Generic, Union
 from ..system import sys_env
 
@@ -76,50 +76,38 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
     def __init__(self) -> None:
         super().__init__()
         self._redlock = aioredlock.Aioredlock([url for url in self.redis_addresses])
-        self._redis_async_client = None
-
-    @property
-    async def redis_async_client(self):
-        if not self._redis_async_client:
-            self._redis_async_client = await aioredis.create_redis_pool(self.master_address)
-        return self._redis_async_client
+        self._redis_async_client = aioredis.from_url(self.master_address)
         
     async def set(self, key: str, data: T, expired: int = None) -> bool:
-        redis_async_client = await self.redis_async_client
         if not key:
             raise Exception("找不到key")
         if expired is None:
-            return await redis_async_client.set(key, json.dumps(data))
+            return await self._redis_async_client.set(key, json.dumps(data))
         else:
-            return await redis_async_client.setex(key, expired, json.dumps(data))
+            return await self._redis_async_client.setex(key, expired, json.dumps(data))
 
     async def get(self, key: str) -> Union[T, None]:
-        redis_async_client = await self.redis_async_client
         if not key:
             raise Exception("找不到key")
-        data = await redis_async_client.get(key)
+        data = await self._redis_async_client.get(key)
         return json.loads(data) if data else None
 
     async def check(self, key: str, expired: int = 24 * 60 * 60) -> bool:
-        redis_async_client = await self.redis_async_client
         if not key:
             raise Exception("找不到key")
-        return await redis_async_client.expire(key, expired)
+        return await self._redis_async_client.expire(key, expired)
 
     async def delete(self, key: str) -> None:
-        redis_async_client = await self.redis_async_client
         if not key:
             raise Exception("找不到key")
-        await redis_async_client.delete(key)
+        await self._redis_async_client.delete(key)
 
     async def close(self) -> None:
         if self._redis_async_client:
             self._redis_async_client.close()
-            await self._redis_async_client.wait_closed()
 
     async def enqueue_message(self, queue_name: str, message: T) -> None:
-        redis_async_client = await self.redis_async_client
-        await redis_async_client.lpush(queue_name, json.dumps(message))
+        await self._redis_async_client.lpush(queue_name, json.dumps(message))
 
     async def dequeue_message(self, queue_name: str, timeout: int = 0) -> Union[T, None]:
         """
@@ -132,8 +120,7 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
         Returns:
             _description_
         """
-        redis_async_client = await self.redis_async_client
-        message = await redis_async_client.brpop(queue_name, timeout=timeout)
+        message = await self._redis_async_client.brpop(queue_name, timeout=timeout)
         if message:
             return json.loads(message[1])
         return None
@@ -156,17 +143,15 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
             return nil
         end
         """
-        redis_async_client = await self.redis_async_client
         # 载入 Lua 脚本并执行
-        script = await redis_async_client.script_load(lua_script)
-        message = await redis_async_client.evalsha(script, keys=[queue_name])
+        script = await self._redis_async_client.script_load(lua_script)
+        message = await self._redis_async_client.evalsha(script, 1, queue_name)
         if message:
             return json.loads(message.decode('utf-8'))
         return None
 
     async def get_queue_length(self, queue_name: str) -> int:
-        redis_async_client = await self.redis_async_client
-        return await redis_async_client.llen(queue_name)
+        return await self._redis_async_client.llen(queue_name)
 
     async def acquire_lock(self, lock_name: str, lock_timeout: int = 60):
         if lock_timeout <= 0:
