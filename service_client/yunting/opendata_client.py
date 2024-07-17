@@ -1,3 +1,4 @@
+import asyncio
 import backoff
 from common_sdk.system.sys_env import get_env
 from common_sdk.logging.logger import logger
@@ -66,6 +67,9 @@ class OpendataClient:
 
                 # 更新 dataInsertTimestamp 为下一个请求的开始时间
                 data_insert_timestamp = fetched_data.get("dataInsertTimestamp")
+
+                # 添加延迟，确保每分钟不超过30次请求
+                await asyncio.sleep(2)  # 每次请求后延迟2秒
 
         return all_data
 

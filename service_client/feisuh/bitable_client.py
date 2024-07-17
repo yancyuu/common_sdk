@@ -330,7 +330,7 @@ class BitableClient:
         if not response.success():
             lark.logger.error(
                 f"Request failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}")
-            return None
+            raise Exception(f"Request failed, code: {response.code}, msg: {response.msg}, log_id: {response.get_log_id()}")
         lark.logger.info(lark.JSON.marshal(response.data, indent=4))
         return response.data
 
