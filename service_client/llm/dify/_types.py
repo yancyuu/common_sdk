@@ -17,6 +17,7 @@ class UsageData(BaseModel):
     currency: str
     latency: float
 
+
 class RetrieverResource(BaseModel):
     position: int
     dataset_id: str
@@ -27,15 +28,17 @@ class RetrieverResource(BaseModel):
     score: float
     content: str
 
+
 class Metadata(BaseModel):
     usage: UsageData
-    retriever_resources: List[RetrieverResource]    
+    retriever_resources: Optional[List[RetrieverResource]] = None
+
 
 class WorkflowData(BaseModel):
     id: str
     workflow_id: str
     status: str
-    outputs: Optional[Dict[str, str]] 
+    outputs: Optional[Dict[str, str]]
     error: Optional[str]
     elapsed_time: float
     total_tokens: int
@@ -43,7 +46,9 @@ class WorkflowData(BaseModel):
     created_at: int
     finished_at: int
 
+
 ">>>>>>>>>>>>>>"
+
 
 class WorkflowApiResponse(BaseModel):
     task_id: str
@@ -55,6 +60,7 @@ class WorkflowApiResponse(BaseModel):
     data: WorkflowData
     """包含工作流运行的详细信息"""
 
+
 class ChatMessageResponse(BaseModel):
     event: Literal["message"]
     message_id: str
@@ -63,4 +69,3 @@ class ChatMessageResponse(BaseModel):
     answer: str
     metadata: Metadata
     created_at: int
-

@@ -1,5 +1,6 @@
 import asyncio
 from common_sdk.system.sys_env import get_env
+from common_sdk.logging.logger import logger
 from common_sdk.service_client.llm.base_client import BaseClient
 from typing import Any, Dict, List, Protocol, runtime_checkable
 from ._types import WorkflowApiResponse, ChatMessageResponse
@@ -19,7 +20,7 @@ class DOIT4SELFClient(BaseClient, APIClientProtocol):
         super().__init__(api_key, get_env("DOIT4SELF_BASE_URL"))
 
     async def chat_completions(self, query, user, conversation_id=None, inputs=None, files=None,
-                               auto_generate_name=True) -> Any:
+                               auto_generate_name=True) -> ChatMessageResponse:
         """
         chat_completions 对话型应用的对话补全接口
 
@@ -51,6 +52,7 @@ class DOIT4SELFClient(BaseClient, APIClientProtocol):
             })
 
         response_data = await self.make_request_async('POST', url, body=payload)
+        logger.info(f"response_data {response_data}")
         return ChatMessageResponse(**response_data)
 
     async def chat_completions_with_streaming(self, query, user, conversation_id=None, inputs=None, files=None,

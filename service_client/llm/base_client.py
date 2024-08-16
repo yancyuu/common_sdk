@@ -1,18 +1,24 @@
-import backoff
-import httpx
+import aiohttp
+import asyncio
 import json
 from ...logging.logger import logger
 from typing import Any, Dict
+import backoff
 
 
-async def process_response(response: httpx.Response) -> Dict[str, Any]:
-    if response.status_code == 200:
-        data = response.json()
+async def process_response(response: aiohttp.ClientResponse) -> Dict[str, Any]:
+    if response.status == 200:
+        data = await response.json()
         logger.info(f"[LLM] response {data}")
         return data
     else:
-        logger.info(f"[LLM] response code {response.status_code} request {response.__dict__}")
-        raise httpx.HTTPStatusError(f"Error response {response.status_code}", request=response.request, response=response)
+        logger.info(f"[LLM] response code {response.status} request {response.__dict__}")
+        raise aiohttp.ClientResponseError(
+            request_info=response.request_info,
+            history=response.history,
+            status=response.status,
+            message=f"Error response {response.status}",
+        )
 
 
 class BaseClient:
@@ -59,47 +65,53 @@ class BaseClient:
 
     @backoff.on_exception(
         backoff.expo,
-        (httpx.HTTPStatusError, httpx.TimeoutException),
+        (aiohttp.ClientResponseError, asyncio.TimeoutError),
         max_tries=5,
-        giveup=lambda e: e.response is not None and e.response.status_code < 500
+        giveup=lambda e: e.status < 500
     )
-    async def make_request_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None, files: Any = None, timeout=60) -> Dict[str, Any]:
-        async with httpx.AsyncClient() as client:
+    async def make_request_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None,
+                                 files: Any = None, timeout=60) -> Dict[str, Any]:
+        async with aiohttp.ClientSession() as session:
             headers = self.get_headers()
             self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
-            response = await client.request(
-                method=method,
-                url=self.base_url + url,
-                headers=headers,
-                json=body,
-                files=files,
-                params=params,
-                timeout = timeout
-            )
-            return await process_response(response)
-        
+            async with session.request(
+                    method=method,
+                    url=self.base_url + url,
+                    headers=headers,
+                    json=body,
+                    data=files,
+                    params=params,
+                    timeout=timeout
+            ) as response:
+                return await process_response(response)
+
     @backoff.on_exception(
-            backoff.expo,
-            (httpx.HTTPStatusError, httpx.TimeoutException),
-            max_tries=5,
-            giveup=lambda e: e.response is not None and e.response.status_code < 500
-        )
-    async def make_request_stream_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None, files: Any = None, timeout=60) -> Any:
+        backoff.expo,
+        (aiohttp.ClientResponseError, asyncio.TimeoutError),
+        max_tries=5,
+        giveup=lambda e: e.status < 500
+    )
+    async def make_request_stream_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None,
+                                        files: Any = None, timeout=60) -> Any:
         headers = self.get_headers()
-        async with httpx.AsyncClient() as client:
+        async with aiohttp.ClientSession() as session:
             try:
                 self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
-                async with client.stream(method, self.base_url + url, headers=headers, json=body, timeout=timeout, files=files) as response:
+                async with session.request(
+                        method=method,
+                        url=self.base_url + url,
+                        headers=headers,
+                        json=body,
+                        data=files,
+                        params=params,
+                        timeout=timeout
+                ) as response:
                     response.raise_for_status()
-                    async for chunk in response.aiter_text():
+                    async for chunk in response.content.iter_any():
                         yield chunk
-            except httpx.TimeoutException as e:
+            except asyncio.TimeoutError as e:
                 logger.error(f'请求超时，错误信息：{e}')
                 raise
-            except httpx.HTTPStatusError as e:
-                logger.error(f'请求失败，状态码：{e.response.status_code}, 错误信息：{e.response.text}')
+            except aiohttp.ClientResponseError as e:
+                logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
                 raise
-        
-
-    
-    
