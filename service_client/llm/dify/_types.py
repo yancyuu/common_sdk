@@ -30,7 +30,7 @@ class RetrieverResource(BaseModel):
 
 
 class Metadata(BaseModel):
-    usage: UsageData
+    usage: Optional[UsageData] = None
     retriever_resources: Optional[List[RetrieverResource]] = None
 
 
@@ -47,16 +47,11 @@ class WorkflowData(BaseModel):
     finished_at: int
 
 
-">>>>>>>>>>>>>>"
-
-
 class WorkflowApiResponse(BaseModel):
     task_id: str
     """任务的唯一标识符"""
-
     workflow_run_id: str
     """工作流运行的唯一标识符"""
-
     data: WorkflowData
     """包含工作流运行的详细信息"""
 
