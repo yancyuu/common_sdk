@@ -58,7 +58,6 @@ class HuoshanClient(object):
         return None
 
     async def query_task(self, task_id):
-        text = None
         data = {
             "appid": app_id,
             "token": access_token,
@@ -66,14 +65,14 @@ class HuoshanClient(object):
             "id": task_id
         }
         for i in range(100):
-            logger.info("time sleep")
-            time.sleep(3)
+            await asyncio.sleep(3)
             res = await self.request_data(self.host + "/query", data)
             if res['resp']['code'] == 1000:  # task finished
                 logger.info("识别成功")
                 return res["resp"]["text"]
             elif res['resp']['code'] < 2000:  # task failed
                 logger.info("识别失败")
+
                 break
         return None
 
@@ -86,7 +85,6 @@ class HuoshanClient(object):
             logger.info("[TTS] result ", result)
 
             return result
-
 
 
 if __name__ == '__main__':
