@@ -82,6 +82,8 @@ class HuoshanClient(object):
             result = await self.query_task(task_id)
             logger.info("[TTS] result ", result)
 
+            return result
+
         return None
 
 
