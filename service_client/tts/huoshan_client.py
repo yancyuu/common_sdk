@@ -79,7 +79,7 @@ class HuoshanClient(object):
         if task_id:
             result = await self.query_task(task_id)
             print("result ", result)
-            return {"result": result}
+            return result
         return None
 
 
