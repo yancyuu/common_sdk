@@ -12,6 +12,7 @@ secret_key = get_env('HS_SECRET_KEY')
 cluster = get_env('HS_CLUSTER')
 
 
+
 class HuoshanClient(object):
     def __init__(self):
         self.api_key = app_id
@@ -85,6 +86,7 @@ class HuoshanClient(object):
             logger.info("[TTS] result ", result)
 
             return result
+
 
 
 if __name__ == '__main__':
