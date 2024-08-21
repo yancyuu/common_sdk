@@ -77,11 +77,11 @@ class HuoshanClient(object):
 
     async def run_tts(self, audio_url, audio_format):
         task_id = await self.create_task(audio_url, audio_format)
-        logger.info(f"生产识别任务id：{task_id}")
+        logger.info(f"[TTS] 生产识别任务id：{task_id}")
         if task_id:
             result = await self.query_task(task_id)
-            logger.info("result ", result)
-            return result
+            logger.info("[TTS] result ", result)
+
         return None
 
 
