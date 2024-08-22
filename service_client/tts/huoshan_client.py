@@ -29,6 +29,7 @@ class HuoshanClient(object):
                     logger.info(f"[TTS] response {await response.text()}")
                     return await response.json()
                 else:
+                    logger.error(f"[TTS] response error {await response.text()}")
                     response.raise_for_status()
 
     async def create_task(self, audio_url, audio_format):
@@ -76,6 +77,7 @@ class HuoshanClient(object):
         return None
 
     async def run_tts(self, audio_url, audio_format):
+        logger.info(f"语音识别任务: {audio_url}, format: {audio_format}")
         task_id = await self.create_task(audio_url, audio_format)
         logger.info(f"[TTS] 生产识别任务id：{task_id}")
         if task_id:
@@ -83,8 +85,6 @@ class HuoshanClient(object):
             logger.info("[TTS] result ", result)
 
             return result
-
-        return None
 
 
 if __name__ == '__main__':
