@@ -3,6 +3,7 @@
 # 火山引擎录音文件识别标准版，https://www.volcengine.com/docs/6561/80820
 import time
 import aiohttp
+import asyncio
 from common_sdk.system.sys_env import get_env
 from common_sdk.logging.logger import logger
 
