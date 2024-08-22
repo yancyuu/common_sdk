@@ -4,10 +4,12 @@
 import time
 import aiohttp
 from common_sdk.system.sys_env import get_env
+from common_sdk.logging.logger import logger
 
 app_id = get_env('HS_APP_ID')
 access_token = get_env('HS_ACCESS_TOKEN')
 secret_key = get_env('HS_SECRET_KEY')
+cluster = get_env('HS_CLUSTER')
 
 
 class HuoshanClient(object):
@@ -15,7 +17,7 @@ class HuoshanClient(object):
         self.api_key = app_id
         self.access_token = access_token
         self.secret_key = secret_key
-        self.cluster = "volc_auc_common"
+        self.cluster = cluster
         self.host = "https://openspeech.bytedance.com/api/v1/auc"
 
     async def request_data(self, url, data):
@@ -24,7 +26,7 @@ class HuoshanClient(object):
         async with aiohttp.ClientSession() as session:
             async with session.post(url, json=data, headers=headers) as response:
                 if response.status == 200:
-                    print(f"[LLM] response {await response.text()}")
+                    logger.info(f"[TTS] response {await response.text()}")
                     return await response.json()
                 else:
                     response.raise_for_status()
@@ -62,23 +64,23 @@ class HuoshanClient(object):
             "id": task_id
         }
         for i in range(100):
-            print("time sleep")
+            logger.info("time sleep")
             time.sleep(3)
             res = await self.request_data(self.host + "/query", data)
             if res['resp']['code'] == 1000:  # task finished
-                print("识别成功")
+                logger.info("识别成功")
                 return res["resp"]["text"]
             elif res['resp']['code'] < 2000:  # task failed
-                print("识别失败")
+                logger.info("识别失败")
                 break
         return None
 
     async def run_tts(self, audio_url, audio_format):
         task_id = await self.create_task(audio_url, audio_format)
-        print(f"生产识别任务id：{task_id}")
+        logger.info(f"生产识别任务id：{task_id}")
         if task_id:
             result = await self.query_task(task_id)
-            print("result ", result)
+            logger.info("result ", result)
             return result
         return None
 
