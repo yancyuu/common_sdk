@@ -3,6 +3,7 @@
 # 火山引擎录音文件识别标准版，https://www.volcengine.com/docs/6561/80820
 import time
 import aiohttp
+import asyncio
 from common_sdk.system.sys_env import get_env
 from common_sdk.logging.logger import logger
 
@@ -10,6 +11,7 @@ app_id = get_env('HS_APP_ID')
 access_token = get_env('HS_ACCESS_TOKEN')
 secret_key = get_env('HS_SECRET_KEY')
 cluster = get_env('HS_CLUSTER')
+
 
 
 class HuoshanClient(object):
@@ -57,7 +59,6 @@ class HuoshanClient(object):
         return None
 
     async def query_task(self, task_id):
-        text = None
         data = {
             "appid": app_id,
             "token": access_token,
@@ -65,14 +66,14 @@ class HuoshanClient(object):
             "id": task_id
         }
         for i in range(100):
-            logger.info("time sleep")
-            time.sleep(3)
+            await asyncio.sleep(3)
             res = await self.request_data(self.host + "/query", data)
             if res['resp']['code'] == 1000:  # task finished
                 logger.info("识别成功")
                 return res["resp"]["text"]
             elif res['resp']['code'] < 2000:  # task failed
                 logger.info("识别失败")
+
                 break
         return None
 
