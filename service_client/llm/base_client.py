@@ -26,6 +26,16 @@ class BaseClient:
     def __init__(self, api_key: str, base_url: str):
         self.base_url = base_url
         self.api_key = api_key
+        self.session = None  # 延迟创建session
+
+    async def get_session(self):
+        if self.session is None or self.session.closed:
+            self.session = await aiohttp.ClientSession().__aenter__()
+        return self.session
+
+    async def close(self):
+        if self.session:
+            await self.session.close()
 
     @staticmethod
     def generate_curl_command(url, method, headers=None, json_data=None, params=None, files=None):
@@ -71,8 +81,9 @@ class BaseClient:
     )
     async def make_request_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None,
                                  files: Any = None, timeout=60) -> Dict[str, Any]:
-        async with aiohttp.ClientSession() as session:
-            headers = self.get_headers()
+        headers = self.get_headers()
+        session = await self.get_session()
+        try:
             self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
             async with session.request(
                     method=method,
@@ -84,6 +95,12 @@ class BaseClient:
                     timeout=timeout
             ) as response:
                 return await process_response(response)
+        except asyncio.TimeoutError as e:
+            logger.error(f'请求超时，错误信息：{e}')
+            raise
+        except aiohttp.ClientResponseError as e:
+            logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
+            raise
 
     @backoff.on_exception(
         backoff.expo,
@@ -94,24 +111,24 @@ class BaseClient:
     async def make_request_stream_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None,
                                         files: Any = None, timeout=60) -> Any:
         headers = self.get_headers()
-        async with aiohttp.ClientSession() as session:
-            try:
-                self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
-                async with session.request(
-                        method=method,
-                        url=self.base_url + url,
-                        headers=headers,
-                        json=body,
-                        data=files,
-                        params=params,
-                        timeout=timeout
-                ) as response:
-                    response.raise_for_status()
-                    async for chunk in response.content.iter_any():
-                        yield chunk
-            except asyncio.TimeoutError as e:
-                logger.error(f'请求超时，错误信息：{e}')
-                raise
-            except aiohttp.ClientResponseError as e:
-                logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
-                raise
+        session = await self.get_session()
+        try:
+            self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
+            async with session.request(
+                    method=method,
+                    url=self.base_url + url,
+                    headers=headers,
+                    json=body,
+                    data=files,
+                    params=params,
+                    timeout=timeout
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.content.iter_chunked(512):
+                    yield chunk
+        except asyncio.TimeoutError as e:
+            logger.error(f'请求超时，错误信息：{e}')
+            raise
+        except aiohttp.ClientResponseError as e:
+            logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
+            raise
