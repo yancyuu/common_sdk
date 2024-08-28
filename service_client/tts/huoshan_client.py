@@ -66,7 +66,7 @@ class HuoshanClient(object):
             "id": task_id
         }
         for i in range(100):
-            await asyncio.sleep(3)
+            await asyncio.sleep(1)
             res = await self.request_data(self.host + "/query", data)
             if res['resp']['code'] == 1000:  # task finished
                 logger.info("识别成功")
@@ -83,7 +83,7 @@ class HuoshanClient(object):
         logger.info(f"[TTS] 生产识别任务id：{task_id}")
         if task_id:
             result = await self.query_task(task_id)
-            logger.info("[TTS] result ", result)
+            logger.info(f"[TTS] result {result}")
 
             return result
 
