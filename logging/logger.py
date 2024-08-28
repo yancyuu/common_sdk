@@ -8,7 +8,7 @@ from common_sdk.base_class.singleton import SingletonMetaThreadSafe as Singleton
 from ..system import sys_env
 from ..util import file_utils, context
 
-APPNAME_ENV_NAME = 'APPNAME'
+APPNAME_ENV_NAME = 'APP_NAME'
 # logger
 LOGGER_CATEGORY_ENV_NAME = "LOGGER_CATEGORY"
 # console

@@ -26,21 +26,20 @@ class BaseClient:
     def __init__(self, api_key: str, base_url: str):
         self.base_url = base_url
         self.api_key = api_key
-        self.session = None  # 延迟创建session
+        self.session = None
 
-    async def get_session(self):
-        if self.session is None or self.session.closed:
-            self.session = await aiohttp.ClientSession().__aenter__()
-        return self.session
+    async def __aenter__(self):
+        if not self.session or self.session.closed:
+            self.session = aiohttp.ClientSession()
+        return self
 
-    async def close(self):
+    async def __aexit__(self, exc_type, exc_val, exc_tb):
         if self.session:
             await self.session.close()
 
-    @staticmethod
-    def generate_curl_command(url, method, headers=None, json_data=None, params=None, files=None):
+    def generate_curl_command(self, url, method, headers=None, json_data=None, params=None, files=None):
         # 初始命令
-        curl_command = f"curl -X {method.upper()} {url}"
+        curl_command = f"curl -X {method.upper()} {self.base_url}/{url}"
 
         # 添加请求头
         if headers:
@@ -82,10 +81,11 @@ class BaseClient:
     async def make_request_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None,
                                  files: Any = None, timeout=60) -> Dict[str, Any]:
         headers = self.get_headers()
-        session = await self.get_session()
+        self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
         try:
-            self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
-            async with session.request(
+            if not self.session or self.session.closed:
+                await self.__aenter__()  # 确保会话是开启状态
+            async with self.session.request(
                     method=method,
                     url=self.base_url + url,
                     headers=headers,
@@ -111,10 +111,11 @@ class BaseClient:
     async def make_request_stream_async(self, method: str, url: str, body: Any = None, params: Dict[str, Any] = None,
                                         files: Any = None, timeout=60) -> Any:
         headers = self.get_headers()
-        session = await self.get_session()
+        self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
         try:
-            self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
-            async with session.request(
+            if not self.session or self.session.closed:
+                await self.__aenter__()  # 确保会话是开启状态
+            async with self.session.request(
                     method=method,
                     url=self.base_url + url,
                     headers=headers,
