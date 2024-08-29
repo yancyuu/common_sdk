@@ -1,6 +1,7 @@
 import ijson
 from io import BytesIO
 from common_sdk.logging.logger import logger
+from datetime import datetime
 
 
 def streaming_to_conversation(buffer):
@@ -37,7 +38,7 @@ def streaming_to_conversation(buffer):
                     elif prefix.endswith('answer') and value:
                         conversation_data['answer'] = value
                     elif prefix.endswith('created_at') and value:
-                        conversation_data['created_at'] = value
+                        conversation_data['created_at'] = datetime.fromtimestamp(value)
                     elif prefix.endswith('metadata.usage.total_tokens') and value:
                         conversation_data['total_tokens'] = value
                     elif prefix.endswith('metadata.usage.total_price') and value:
