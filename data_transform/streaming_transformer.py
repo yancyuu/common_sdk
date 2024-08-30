@@ -23,8 +23,6 @@ def streaming_to_conversation(buffer):
                 parser = ijson.parse(buffer)
 
                 for prefix, event, value in parser:
-                    # 日志记录，方便调试和检查数据
-                    logger.info(f"prefix {prefix}, event {event}, value {value}")
                     # 使用前缀来确定数据的位置和类型
                     conversation_data_event = None
                     if prefix.endswith('event') and value:
