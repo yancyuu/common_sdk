@@ -28,20 +28,8 @@ class BaseClient:
     def __init__(self, api_key: str, base_url: str, max_connections: int = 200):
         self.base_url = base_url
         self.api_key = api_key
-        self.connector = aiohttp.TCPConnector(limit=max_connections, keepalive_timeout=30, ttl_dns_cache=300)  # 增加连接池限制
-        self.session = None  # 提前创建 Session
-
-    async def __aenter__(self):
-        if not self.session or self.session.closed:
-            self.session = aiohttp.ClientSession(connector=self.connector)  # 确保 session 是开启的
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        if self.session and not self.session.closed:
-            try:
-                await self.session.close()
-            except Exception as e:
-                logger.error(f"Error while closing session: {e}")
+        self.connector = aiohttp.TCPConnector(limit=max_connections, keepalive_timeout=30, ttl_dns_cache=300)
+        self.session = aiohttp.ClientSession(connector=self.connector)
 
     async def close(self):
         if self.session and not self.session.closed:
@@ -89,7 +77,7 @@ class BaseClient:
         headers = self.get_headers()
         self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
         try:
-            async with aiohttp.ClientSession(connector=self.connector).request(
+            async with self.session.request(
                     method=method,
                     url=self.base_url + url,
                     headers=headers,
@@ -117,28 +105,23 @@ class BaseClient:
                                         files: Any = None, timeout=300) -> Any:
         headers = self.get_headers()
         self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
-        # Use async with to ensure the ClientSession is properly closed
-        async with aiohttp.ClientSession(connector=self.connector) as session:
-            try:
-                async with session.request(
-                        method=method,
-                        url=self.base_url + url,
-                        headers=headers,
-                        json=body,
-                        data=files,
-                        params=params,
-                        timeout=timeout
-                ) as response:
-                    response.raise_for_status()
-                    async for chunk in response.content.iter_chunked(16384):  # 处理流式输出
-                        logger.debug(f"[LLM] Streaming chunk: {chunk}")
-                        yield chunk
-            except asyncio.TimeoutError as e:
-                logger.error(f'请求超时，错误信息：{e}')
-                raise
-            except aiohttp.ClientResponseError as e:
-                logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
-                raise
-            except aiohttp.ClientConnectionError as e:
-                logger.error(f'请求失败，状态码：{response.status}, 错误信息：{await response.text()}')
-                raise  # 捕捉连接错误，并通过 backoff 进行重试
+        try:
+            async with self.session.request(
+                    method=method,
+                    url=self.base_url + url,
+                    headers=headers,
+                    json=body,
+                    data=files,
+                    params=params,
+                    timeout=timeout
+            ) as response:
+                response.raise_for_status()
+                async for chunk in response.content.iter_chunked(16384):  # 处理流式输出
+                    logger.debug(f"[LLM] Streaming chunk: {chunk}")
+                    yield chunk
+        except asyncio.TimeoutError as e:
+            logger.error(f'请求超时，错误信息：{e}')
+            raise
+        except aiohttp.ClientResponseError as e:
+            logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
+            raise
