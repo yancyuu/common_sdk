@@ -65,7 +65,7 @@ class BaseClient:
             'Authorization': f'Bearer {self.api_key}'
         }
 
-    # 普通异步请求
+    # 普通异步请求，确保每次请求后关闭 client session
     @backoff.on_exception(
         backoff.expo,
         (aiohttp.ClientResponseError, asyncio.TimeoutError),
@@ -76,25 +76,27 @@ class BaseClient:
                                  files: Any = None, timeout=300) -> Dict[str, Any]:
         headers = self.get_headers()
         self.generate_curl_command(url, method, headers=headers, json_data=body, params=params, files=files)
-        try:
-            async with self.session.request(
-                    method=method,
-                    url=self.base_url + url,
-                    headers=headers,
-                    json=body,
-                    data=files,
-                    params=params,
-                    timeout=timeout
-            ) as response:
-                return await process_response(response)
-        except asyncio.TimeoutError as e:
-            logger.error(f'请求超时，错误信息：{e}')
-            raise
-        except aiohttp.ClientResponseError as e:
-            logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
-            raise
+        # 创建并关闭 session 在请求内完成
+        async with aiohttp.ClientSession(connector=self.connector) as session:  # 每次创建一个新的 ClientSession
+            try:
+                async with session.request(
+                        method=method,
+                        url=self.base_url + url,
+                        headers=headers,
+                        json=body,
+                        data=files,
+                        params=params,
+                        timeout=timeout
+                ) as response:
+                    return await process_response(response)
+            except asyncio.TimeoutError as e:
+                logger.error(f'请求超时，错误信息：{e}')
+                raise
+            except aiohttp.ClientResponseError as e:
+                logger.error(f'请求失败，状态码：{e.status}, 错误信息：{await response.text()}')
+                raise
 
-    # 流式异步请求
+    # 流式异步请求，复用了client session，需要每次请求后手动关闭 client session
     @backoff.on_exception(
         backoff.expo,
         (aiohttp.ClientResponseError, asyncio.TimeoutError),
