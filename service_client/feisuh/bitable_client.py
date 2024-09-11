@@ -12,8 +12,8 @@ class RetryException(Exception):
 class BitableClient:
     
     def __init__(self, enable_token: bool = False, log_level: lark.LogLevel = lark.LogLevel.INFO):
-        self.app_id = get_env("BITTABLE_APP_ID")
-        self.app_secret = get_env("BITTABLE_APP_SECRET")
+        self.app_id = get_env("FEISHU_APP_ID")
+        self.app_secret = get_env("FEISHU_APP_SECRET")
         self.enable_token = enable_token
         self.log_level = log_level
         self.client = self._create_client()
