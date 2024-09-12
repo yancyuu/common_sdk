@@ -2,7 +2,7 @@ import asyncio
 import httpx
 import time
 import backoff
-from clients.base_client import BaseClient
+from common_sdk.service_client.llm.base_client import BaseClient
 from common_sdk.system.sys_env import get_env
 from common_sdk.logging.logger import logger
 
