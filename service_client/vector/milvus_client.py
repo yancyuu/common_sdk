@@ -45,32 +45,31 @@ class MilvusRagClient:
                             {"field_name": "chunk_context_embedding", "metric_type": "COSINE", "index_type": "IVF_FLAT", "index_name": "chunk_context_embedding", "params": {"nlist": 128}},
                          ]
         """
-        if not self.get_milvus_client().has_collection(collection_name):
-            schema = self.get_milvus_client().create_schema(
-                enable_dynamic_field=enable_dynamic_field,
-                description=schema_description
+        schema = self.get_milvus_client().create_schema(
+            enable_dynamic_field=enable_dynamic_field,
+            description=schema_description
+        )
+
+        for field in field_schema:
+            schema.add_field(**field)
+
+        index_params_obj = self.get_milvus_client().prepare_index_params()
+        for index in index_params:
+            index_params_obj.add_index(**index)
+
+        try:
+            self.get_milvus_client().create_collection(
+                collection_name=collection_name,
+                schema=schema,
+                index_params=index_params_obj,
             )
+            return True
+        except Exception as e:
+            logger.error(f"创建集合失败: {e}")
+            return False
 
-            for field in field_schema:
-                schema.add_field(**field)
-
-            index_params_obj = self.get_milvus_client().prepare_index_params()
-            for index in index_params:
-                index_params_obj.add_index(**index)
-
-            try:
-                self.get_milvus_client().create_collection(
-                    collection_name=collection_name,
-                    schema=schema,
-                    index_params=index_params_obj,
-                )
-                return True
-            except Exception as e:
-                logger.error(f"创建集合失败: {e}")
-                return False
-
-        logger.error(f"集合已经存在: {collection_name}")
-        raise Exception(f"集合已经存在: {collection_name}")
+    def get_collections(self):
+        return self.get_milvus_client().list_collections()
 
     def collection_insert(self,* , collection_name: str, data: List[Dict]) -> bool:
         """插入数据"""
@@ -118,7 +117,7 @@ class MilvusRagClient:
         rerank: WeightedRanker,
         limit: int,
         output_fields: Optional[List[str]],
-        timeout: Optional[float],
+        timeout: Optional[float] = None,
         _async: bool = False
     ) -> SearchFuture or Any:
         """混合搜索"""

@@ -60,7 +60,13 @@ class OSSClient:
         except (oss2.exceptions.OssError, oss2.exceptions.ServerError) as e:
             return
 
-
+    def get_object(self, object_name):
+        try:
+            res = self.bucket.get_object(object_name)
+            logger.info(f"Read file success {object_name}")
+            return res.resp
+        except (oss2.exceptions.OssError, oss2.exceptions.ServerError) as e:
+            return
         
     
 if __name__ == "__main__":
