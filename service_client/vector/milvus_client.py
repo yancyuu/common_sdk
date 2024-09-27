@@ -80,10 +80,14 @@ class MilvusRagClient:
             logger.error(f"插入数据失败: {e}")
             raise Exception(f"插入数据失败: {e}")
 
-    def delete_collection_data(self,* , collection_name: str, ids: List[Any]) -> bool:
+    def delete_collection_data(self, *, collection_name: str, ids: List[Any]) -> bool:
         """删除collection中的数据"""
         self.get_milvus_client().delete(collection_name=collection_name, ids=ids)
         return True
+
+    def delete_collection(self, *, collection_name: str):
+        """删除collection"""
+        self.delete_collection(collection_name=collection_name)
 
     def search(
         self,
@@ -110,6 +114,34 @@ class MilvusRagClient:
             **kwargs
         )
 
+    def asearch(
+            self,
+        *,
+    collection_name: str,
+    data: Union[List[list], list],
+    filter: str = "",
+    limit: int = 10,
+    output_fields: Optional[List[str]] = None,
+    search_params: Optional[dict] = None,
+    timeout: Optional[float] = None,
+    partition_names: Optional[List[str]] = None,
+    anns_field: Optional[str] = None,
+    _async: bool = True,
+    **kwargs,
+    ):
+        return self.get_milvus_client().search(
+            collection_name=collection_name, data=data,
+            filter=filter,
+            limit=limit,
+            output_fields=output_fields,
+            search_params=search_params,
+            timeout=timeout,
+            partition_names=partition_names,
+            anns_field=anns_field,
+            _async=_async,
+            **kwargs
+        )
+
     def hybrid_search(
         self,
         collection_name: str,
@@ -131,4 +163,26 @@ class MilvusRagClient:
             output_fields=output_fields,
             _async=_async,
         )
-        return SearchFuture(resp) if _async else resp
+        return resp
+
+    def ahybrid_search(
+            self,
+            collection_name: str,
+            reqs: List[AnnSearchRequest],
+            rerank: WeightedRanker,
+            limit: int,
+            output_fields: Optional[List[str]],
+            timeout: Optional[float] = None,
+            _async: bool = True,
+    ):
+        con = self.get_milvus_client()._get_connection()
+        resp = con.hybrid_search(
+            collection_name=collection_name,
+            reqs=reqs,
+            rerank=rerank,
+            limit=limit,
+            timeout=timeout,
+            output_fields=output_fields,
+            _async=_async,
+        )
+        return resp
