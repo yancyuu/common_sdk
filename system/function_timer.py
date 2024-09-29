@@ -8,22 +8,35 @@
   def func():
       xxx
 """
-
+import inspect
 from ..logging.logger import logger
 from ..util.datetime_utils import DateTime
 
 
 def function_timer(name=None):
     def decorator(func):
-        def wrapper_function(*args, **kwargs):
+        # 同步函数的包装器
+        def wrapper_function_sync(*args, **kwargs):
             start = DateTime()
-            result = func(*args,  **kwargs)
+            result = func(*args, **kwargs)
             milliseconds = DateTime().milliseconds - start.milliseconds
-            func_name = name
-            if func_name is None:
-                func_name = f'{func.__name__!r}'
-            logger.info('[{}]  函数执行时间: {}毫秒'.format(func_name, milliseconds))
+            func_name = name or f'{func.__name__!r}'
+            logger.info('[{}] 函数执行时间: {}毫秒'.format(func_name, milliseconds))
             return result
-        return wrapper_function
+
+        # 异步函数的包装器
+        async def wrapper_function_async(*args, **kwargs):
+            start = DateTime()
+            result = await func(*args, **kwargs)
+            milliseconds = DateTime().milliseconds - start.milliseconds
+            func_name = name or f'{func.__name__!r}'
+            logger.info('[{}] 函数执行时间: {}毫秒'.format(func_name, milliseconds))
+            return result
+
+        # 判断函数是同步还是异步
+        if inspect.iscoroutinefunction(func):
+            return wrapper_function_async
+        else:
+            return wrapper_function_sync
 
     return decorator
