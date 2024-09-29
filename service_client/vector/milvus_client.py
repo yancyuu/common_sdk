@@ -1,7 +1,7 @@
 from pymilvus import MilvusClient, WeightedRanker, AnnSearchRequest, SearchFuture
 from common_sdk.system.sys_env import get_env
 from common_sdk.logging.logger import logger
-from typing import List, Dict, Any, Optional, Union
+from typing import List, Dict, Any, Optional, Union, Callable
 
 
 class MilvusRagClient:
@@ -87,7 +87,7 @@ class MilvusRagClient:
 
     def delete_collection(self, *, collection_name: str):
         """删除collection"""
-        self.delete_collection(collection_name=collection_name)
+        self.get_milvus_client().drop_collection(collection_name=collection_name)
 
     def search(
         self,
