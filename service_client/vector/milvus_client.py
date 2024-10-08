@@ -80,6 +80,15 @@ class MilvusRagClient:
             logger.error(f"插入数据失败: {e}")
             raise Exception(f"插入数据失败: {e}")
 
+    def collection_upsert(self, *, collection_name: str, data: List[Dict]) -> bool:
+        """插入数据"""
+        try:
+            self.get_milvus_client().upsert(collection_name=collection_name, data=data)
+            return True
+        except Exception as e:
+            logger.error(f"更新数据失败: {e}")
+            raise Exception(f"更新数据失败: {e}")
+
     def delete_collection_data(self, *, collection_name: str, ids: List[Any]) -> bool:
         """删除collection中的数据"""
         self.get_milvus_client().delete(collection_name=collection_name, ids=ids)
