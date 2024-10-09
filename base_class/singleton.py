@@ -4,22 +4,20 @@ from threading import Lock
 
 
 class SingletonMetaThreadSafe(type):
+    """
+    线程安全的单例类的metaclass
+    >>> class BusinessClass(metaclass=SingletonMetaThreadSafe):
+    >>>     pass
+    """
     _instances = {}
-    _lock = Lock()
+    _lock: Lock = Lock()
 
     def __call__(cls, *args, **kwargs):
-        # 创建一个基于参数的键，这里选择将参数转化为字符串
-        # 注意：这里可能需要对参数做一些预处理，以确保它们是可哈希的（例如，列表转元组）
-        # 例如，可以决定只使用特定的关键字参数
-        args_repr = tuple(args)   # 将位置参数转为元组
-        kwargs_repr = tuple(sorted(kwargs.items()))  # 对关键字参数排序并转为元组
-        key = (args_repr, kwargs_repr)
-
         with cls._lock:
-            if (cls, key) not in cls._instances:
+            if cls not in cls._instances:
                 instance = super().__call__(*args, **kwargs)
-                cls._instances[(cls, key)] = instance
-            return cls._instances[(cls, key)]
+                cls._instances[cls] = instance
+        return cls._instances[cls]
 
 
 class SingletonMetaNoThreadSafe(type):
@@ -29,12 +27,8 @@ class SingletonMetaNoThreadSafe(type):
     """
     _instances = {}
 
-    def __call__(cls, *args, **kwargs):
-        args_repr = tuple(args)  # 将位置参数转为元组
-        kwargs_repr = tuple(sorted(kwargs.items()))  # 对关键字参数排序并转为元组
-        key = (args_repr, kwargs_repr)
-
-        if (cls, key) not in cls._instances:
-            instance = super().__call__(*args, **kwargs)
-            cls._instances[(cls, key)] = instance
-        return cls._instances[(cls, key)]
+    def __call__(cls, *args, **kargs):
+        if cls not in cls._instances:
+            instance = super().__call__(*args, **kargs)
+            cls._instances[cls] = instance
+        return cls._instances[cls]
