@@ -19,9 +19,7 @@ class SingletonAsyncMongodbClientHelper:
             self.mongo_client = None
 
     @classmethod
-    async def create(cls, connect_url=None):
-        if connect_url is None:
-            connect_url = get_env("MONGODB_CONNECTION_STRING", "")
+    async def create(cls, connect_url):
         async with cls._lock:
             if connect_url in cls._instances:
                 return cls._instances[connect_url]
