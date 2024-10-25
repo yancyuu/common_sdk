@@ -113,6 +113,12 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
     async def enqueue_message(self, queue_name: str, message: T) -> None:
         await self._redis_async_client.lpush(queue_name, json.dumps(message))
 
+    async def lindex_message(self, queue_name: str, index: int) -> None:
+        return await self._redis_async_client.lindex(queue_name, index)
+
+    async def lrange_message(self, queue_name: str) -> None:
+        return await self._redis_async_client.lrange(queue_name, 0, -1)
+
     async def dequeue_message(self, queue_name: str, timeout: int = 0) -> Union[T, None]:
         """
         dequeue_message _summary_
