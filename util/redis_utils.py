@@ -108,7 +108,8 @@ class AsyncRedisStorage(BaseRedisStorage[T]):
 
     async def close(self) -> None:
         if self._redis_async_client:
-            self._redis_async_client.close()
+            await self._redis_async_client.close()
+            await self._redis_async_client.wait_closed()
 
     async def enqueue_message(self, queue_name: str, message: T) -> None:
         await self._redis_async_client.lpush(queue_name, json.dumps(message))
