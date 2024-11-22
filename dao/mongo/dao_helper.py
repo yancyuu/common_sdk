@@ -99,6 +99,22 @@ class AsyncMongodbClientHelper(SingletonAsyncMongodbClientHelper):
         result = await collection.aggregate(pipeline).to_list(length=None)
         return result
 
+    async def get_random_document(self, db_name, coll_name, size=1, conditions=None):
+        """
+        从 MongoDB 的指定集合中随机获取一条文档。
+
+        :return: 随机选择的文档 (以字典形式返回)，如果集合为空则返回 None
+        """
+        # 构建聚合管道
+        pipeline = []
+        # 使用 $sample 随机获取一条文档
+        if conditions:
+            pipeline.append({"$match": conditions})
+        pipeline.append({"$sample": {"size": size}})
+        collection = await self.get_collection(self.connect_url, db_name, coll_name)
+        cursor = collection.aggregate(pipeline)
+        return [doc async for doc in cursor]
+
     def limit_documents(self, cursor, order_by=None, page=1, size=None):
         if order_by:
             cursor = cursor.sort(order_by)
