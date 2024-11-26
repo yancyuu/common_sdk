@@ -30,6 +30,16 @@ class AlchemyEncoder(json.JSONEncoder):
             return fields
         return super().default(obj)
 
+    def batch_alchemy_to_dict(self, data_list):
+        """
+        将 ORM 对象列表转换为字典列表
+        Args:
+            data_list: ORM 对象列表
+        Returns:
+            字典列表
+        """
+        return [self.default(item) for item in data_list]
+
 
 def alchemy_to_dict(data):
     if isinstance(data.__class__, DeclarativeMeta):
@@ -37,3 +47,15 @@ def alchemy_to_dict(data):
         return encoder.default(data)
     else:
         raise TypeError("Provided object is not a SQLAlchemy object")
+
+
+def batch_alchemy_to_dict(data_list):
+    """
+    将 ORM 对象列表转换为字典列表
+    Args:
+        data_list: ORM 对象列表
+    Returns:
+            字典列表
+    """
+    encoder = AlchemyEncoder()
+    return encoder.batch_alchemy_to_dict(data_list)
