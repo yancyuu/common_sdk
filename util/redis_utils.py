@@ -66,7 +66,7 @@ class AsyncRedisStorage(Generic[T]):
         await self._redis_client.lpush(queue_name, json.dumps(message))
 
     async def dequeue_message(self, queue_name: str, timeout: int = 0) -> Union[T, None]:
-        message = await self._redis_client.brpop(queue_name, timeout=timeout)
+        message = await self._redis_client.brpop([queue_name], timeout=timeout)
         return json.loads(message[1]) if message else None
 
     async def get_queue_length(self, queue_name: str) -> int:
@@ -75,7 +75,7 @@ class AsyncRedisStorage(Generic[T]):
     async def acquire_lock(self, key: str, timeout: int = 60) -> bool:
         if timeout <= 0:
             raise ValueError("Lock timeout must be greater than 0 seconds.")
-        return await self._redis_client.set(key, "lock", expire=timeout)
+        return await self._redis_client.set(key, "lock", ex=timeout)
 
     async def release_lock(self, key: str) -> None:
         await self._redis_client.delete(key)
