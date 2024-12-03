@@ -10,6 +10,8 @@
 """
 import inspect
 from ..logging.logger import logger
+from ..logging.asny_logger import logger as asny_logger
+
 from ..util.datetime_utils import DateTime
 
 
@@ -30,7 +32,7 @@ def function_timer(name=None):
             result = await func(*args, **kwargs)
             milliseconds = DateTime().milliseconds - start.milliseconds
             func_name = name or f'{func.__name__!r}'
-            logger.info('[{}] 函数执行时间: {}毫秒'.format(func_name, milliseconds))
+            await asny_logger.info('[{}] 函数执行时间: {}毫秒'.format(func_name, milliseconds))
             return result
 
         # 判断函数是同步还是异步

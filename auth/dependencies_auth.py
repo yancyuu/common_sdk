@@ -26,7 +26,7 @@ def validate_credentials(credentials: HTTPBasicCredentials = Depends(security)):
 bearer_security = HTTPBearer()
 
 
-def validate_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_security)):
+async def validate_token(credentials: HTTPAuthorizationCredentials = Depends(bearer_security)):
     """
     验证 Bearer Token 的合法性
 
