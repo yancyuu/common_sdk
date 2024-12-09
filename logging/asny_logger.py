@@ -72,7 +72,7 @@ class AsyncLoggerWrapper(metaclass=SingletonMetaclass):
                 f'pid:%(process)d@%(pathname)s:%(lineno)s | %(message)s'
             )
         )
-        self._logger = AsyncLogger(name="async_logger", level="INFO")
+        self._logger = AsyncLogger(name="async_logger", level="DEBUG")
         self._init_console_handler()
         self._init_file_handler()
         self._init_syslog_handler()
