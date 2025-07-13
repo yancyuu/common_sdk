@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
-import json
-import time
+import ujson
 from typing import TypeVar, Generic, Union
 
 import redis.asyncio as aioredis
@@ -49,13 +48,13 @@ class AsyncRedisStorage(Generic[T]):
     async def set(self, key: str, data: T, expired: int = 7200) -> bool:
         if not key:
             raise ValueError("Key cannot be empty.")
-        return await self._redis_client.setex(key, expired, json.dumps(data))
+        return await self._redis_client.setex(key, expired, ujson.dumps(data))
 
     async def get(self, key: str) -> Union[T, None]:
         if not key:
             raise ValueError("Key cannot be empty.")
         data = await self._redis_client.get(key)
-        return json.loads(data) if data else None
+        return ujson.loads(data) if data else None
 
     async def delete(self, key: str) -> None:
         if not key:
@@ -63,11 +62,11 @@ class AsyncRedisStorage(Generic[T]):
         await self._redis_client.delete(key)
 
     async def enqueue_message(self, queue_name: str, message: T) -> None:
-        await self._redis_client.lpush(queue_name, json.dumps(message))
+        await self._redis_client.lpush(queue_name, ujson.dumps(message))
 
     async def dequeue_message(self, queue_name: str, timeout: int = 0) -> Union[T, None]:
         message = await self._redis_client.brpop([queue_name], timeout=timeout)
-        return json.loads(message[1]) if message else None
+        return ujson.loads(message[1]) if message else None
 
     async def get_queue_length(self, queue_name: str) -> int:
         return await self._redis_client.llen(queue_name)
@@ -82,7 +81,7 @@ class AsyncRedisStorage(Generic[T]):
 
     async def lrange_messages(self, queue_name: str) -> list:
         messages = await self._redis_client.lrange(queue_name, 0, -1)
-        return [json.loads(msg) for msg in messages]
+        return [ujson.loads(msg) for msg in messages]
 
 
 # 创建 AsyncRedisStorage 默认实例
@@ -91,6 +90,6 @@ async_redis_storage = AsyncRedisStorage(redis_client=RedisInstanceManager.get_re
     host=get_env("REDIS_HOST", "localhost"),
     port=get_env("REDIS_PORT", 6379),
     password=get_env("REDIS_PASSWORD", ""),
-    max_connections=10
+    max_connections=5000
 ))
 
